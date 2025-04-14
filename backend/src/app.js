@@ -3,13 +3,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.route.js";
 import dotenv from "dotenv";
+import paymentRouter from "./routes/payment.route.js";
 
 dotenv.config();
 
 const app = express();
 
 app.use(cors({
-    origin: [process.env.CORS_ORIGIN || "http://localhost:5173"],// filter out undefined values
+    origin: [process.env.CORS_ORIGIN || "http://localhost:5173"],
     credentials: true,
 }));
 
@@ -30,12 +31,13 @@ app.use(cookieParser());
 
 
 app.use("/api/auth", authRouter);
+app.use("/api", paymentRouter);
 
 
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const message = err.message || "Internal Server error";
-    console.error("Error:", err); // Log error details to console
+    console.error("Error:", err); 
     return res.status(statusCode).json({
         success: false,
         message,
