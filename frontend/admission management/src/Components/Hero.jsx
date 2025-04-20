@@ -10,7 +10,8 @@ function Hero() {
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 font-satoshi mb-8">
             Tackle The Problem Of Complex
             <br />
-            <span className="text-primary">Admission Process</span> Seamlessly
+            <span className="text-orange-400">Admission Process</span>{" "}
+            Seamlessly
           </h1>
           <Link
             to="/admission"
