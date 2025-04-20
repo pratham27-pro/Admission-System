@@ -1,9 +1,13 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@400&display=swap");
+
 @import "tailwindcss";
-@theme {
-    --color-primary: #FD8634;
-    --color-footer: #f8f8f8;
-    --font-display: "Satoshi", "sans-serif";
-    }
+
+@layer utilities {
+  .font-satoshi {
+    font-family: "Satoshi", sans-serif;
+  }
+}
+
 .hero-section {
         background: radial-gradient(circle, #fd863459 0%, #ffffff 60%);
         display: flex;
