@@ -2,14 +2,12 @@ import { User } from '../models/user.model.js';
 import cloudinary from '../utils/cloudinary.js';
 
 class FormController {
-  // Submit complete form
   async submitForm(req, res) {
     try {
       console.log('Received form submission request');
       console.log('Files:', req.files);
       console.log('Body:', req.body);
 
-      // Parse JSON data from form sections
       let personalData = {};
       let addressData = {};
       let educationData = {};
@@ -26,7 +24,6 @@ class FormController {
         });
       }
 
-      // Organize uploaded files
       const fileUrls = {};
       const documentUrls = {};
 
@@ -71,31 +68,23 @@ class FormController {
         }
       }
 
-      // Create form submission object
       const formSubmissionData = {
-        // Personal Details
         ...personalData,
         
-        // Address Details
         ...addressData,
         
-        // Education Details
         ...educationData,
         
-        // File URLs
         photo: fileUrls.photo,
         signature: fileUrls.signature,
         
-        // Document URLs
         documents: documentUrls,
         
-        // Payment details (if provided)
         paymentMethod: req.body.paymentMethod || '',
         cardNumber: req.body.cardNumber || '',
         paymentStatus: 'pending'
       };
 
-      // Save to database
       const formSubmission = new User(formSubmissionData);
       const savedSubmission = await formSubmission.save();
 
@@ -116,11 +105,9 @@ class FormController {
     } catch (error) {
       console.error('Form submission error:', error);
       
-      // Clean up uploaded files if database save fails
       if (req.files) {
         req.files.forEach(async (file) => {
           try {
-            // Extract public_id from Cloudinary URL
             const publicId = file.filename || file.public_id;
             if (publicId) {
               await cloudinary.uploader.destroy(publicId);
@@ -148,7 +135,6 @@ class FormController {
     }
   }
 
-  // Get form submission by ID
   async getSubmission(req, res) {
     try {
       const { id } = req.params;
@@ -175,7 +161,6 @@ class FormController {
     }
   }
 
-  // Get all submissions (with pagination)
   async getAllSubmissions(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -210,7 +195,6 @@ class FormController {
     }
   }
 
-  // Update payment status
   async updatePaymentStatus(req, res) {
     try {
       const { id } = req.params;

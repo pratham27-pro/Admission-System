@@ -1,20 +1,20 @@
-// config/multer.js
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from './cloudinary.js';
 
-// Configure Cloudinary storage for different file types
-const createCloudinaryStorage = (folder, allowedFormats = ['jpg', 'jpeg', 'png', 'pdf']) => {
+const createCloudinaryStorage = (userName, fileType) => {
+  const sanitizedUserName = userName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+  
   return new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-      folder: `form-submissions/${folder}`,
-      allowed_formats: allowedFormats,
-      transformation: folder === 'photos' ? [{ width: 500, height: 500, crop: 'limit' }] : undefined,
+      folder: `form-submissions/${sanitizedUserName}/${fileType}`,
+      allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'],
       resource_type: 'auto'
     }
   });
 };
+
 
 // Different storage configurations
 const photoStorage = createCloudinaryStorage('photos', ['jpg', 'jpeg', 'png']);
