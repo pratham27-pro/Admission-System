@@ -4,7 +4,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import img from "../Images/logo.jpg";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { signinSuccess, signinFailure, signinStart, logout } from "../redux/user/userSlice.js";
+import { signinSuccess} from "../redux/user/userSlice.js";
 
 const Signup = () => {
   const [formData, setFormData] = useState({});

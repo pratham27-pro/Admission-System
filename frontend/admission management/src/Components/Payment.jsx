@@ -27,7 +27,7 @@ const Payment = ({
           description: response.data.description,
           image: "https://dummyimage.com/600x400/000/fff",
           order_id: response.data.order_id,
-          handler: function (response) {
+          handler: function () {
             alert("Payment Successful!");
             // Redirect here
           },
@@ -45,7 +45,7 @@ const Payment = ({
         };
 
         const razorpay = new window.Razorpay(options);
-        razorpay.on("payment.failed", function (response) {
+        razorpay.on("payment.failed", function () {
           alert("Payment Failed. Please try again.");
         });
         razorpay.open();

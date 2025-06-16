@@ -14,7 +14,7 @@ function Login() {
     };
   
     const [showPassword, setShowPassword] = useState(false);
-    const {loading, error} = useSelector((state) => state.user)
+    const {loading} = useSelector((state) => state.user)
   
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -105,11 +105,11 @@ function Login() {
     
     
   
-    const getPasswordStrength = (password) => {
-      if (password.length < 8) return 'Weak';
-      if (password.length < 12) return 'Medium';
-      return 'Strong';
-    };
+    // const getPasswordStrength = (password) => {
+    //   if (password.length < 8) return 'Weak';
+    //   if (password.length < 12) return 'Medium';
+    //   return 'Strong';
+    // };
   
     return (
      <div className="min-h-screen bg-gradient-to-br from-purple-100 to-indigo-200 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
