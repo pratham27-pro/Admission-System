@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.route.js";
 import dotenv from "dotenv";
+import formRouter from "./routes/form.route.js";
 // import paymentRouter from "./routes/payment.route.js";
 
 dotenv.config();
@@ -32,6 +33,7 @@ app.use(cookieParser());
 
 app.use("/api/auth", authRouter);
 // app.use("/api", paymentRouter);
+app.use("/api", formRouter);
 
 
 app.use((err, req, res, next) => {

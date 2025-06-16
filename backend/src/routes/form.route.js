@@ -27,13 +27,11 @@ const uploadFields = uploadAll.fields([
   { name: 'documents.attendanceParent', maxCount: 1 }
 ]);
 
-// Routes
 formRouter.post('/submit-form', uploadFields, FormController.submitForm);
 formRouter.get('/submission/:id', FormController.getSubmission);
 formRouter.get('/submissions', FormController.getAllSubmissions);
 formRouter.patch('/submission/:id/payment', FormController.updatePaymentStatus);
 
-// Error handling middleware for multer
 formRouter.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
