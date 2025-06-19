@@ -10,7 +10,6 @@ import EducationDetails from "./EducationDetails";
 import PhotoSign from "./PhotoSign";
 import Documents from "./Documents";
 import Confirmation from "./Confirmation";
-import Payment from "./Payment";
 
 const FORM_STORAGE_KEY = "multiStepFormData";
 
@@ -32,8 +31,6 @@ const MultiStepForm = () => {
     { number: 4, label: "Photo & Sign", component: PhotoSign },
     { number: 5, label: "Documents", component: Documents },
     { number: 6, label: "Confirmation", component: Confirmation },
-    { number: 7, label: "Payment", component: Payment },
-    { number: 8, label: "ID", component: PersonalDetails },
   ];
 
   const getInitialValues = () => {
@@ -307,10 +304,8 @@ const MultiStepForm = () => {
       ),
     }),
 
-    // Add validation schemas for steps 6, 7, and 8
+    // Add validation schemas for steps 6
     Yup.object({}), // Confirmation form
-    Yup.object({}), // Payment form
-    Yup.object({}), // ID form
   ];
 
   // First, modify the handleSubmit function to ensure it only runs on step 6
@@ -332,7 +327,7 @@ const MultiStepForm = () => {
         if (!fileFields.has(key)) {
           if (key === 'dateOfBirth' && values[key]) {
             formDataToSend.append(key, values[key].toISOString());
-          } else if (values[key] != null) { // Only append non-null values
+          } else if (values[key] != null) {
             formDataToSend.append(key, values[key]);
           }
         }
@@ -363,11 +358,10 @@ const MultiStepForm = () => {
       const data = await response.json();
       console.log("Form submitted successfully:", data);
       
-      // Move to payment step and clear data
-      handleStepChange(7, formikRef.current.validateForm, formikRef.current.setTouched);
+      // Clear form data and show success
       localStorage.removeItem(FORM_STORAGE_KEY);
       localStorage.removeItem("currentFormStep");
-      navigate("/payment");
+      navigate("/success"); // Make sure you have a success page or modify this as needed
       
     } catch (error) {
       console.error("Form processing error:", error);
