@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useSelector } from "react-redux"; // Add this import
@@ -10,7 +10,6 @@ import EducationDetails from "./EducationDetails";
 import PhotoSign from "./PhotoSign";
 import Documents from "./Documents";
 import Confirmation from "./Confirmation";
-import Payment from "./Payment";
 
 const FORM_STORAGE_KEY = "multiStepFormData";
 
@@ -32,20 +31,69 @@ const MultiStepForm = () => {
     { number: 4, label: "Photo & Sign", component: PhotoSign },
     { number: 5, label: "Documents", component: Documents },
     { number: 6, label: "Confirmation", component: Confirmation },
-    { number: 7, label: "Payment", component: Payment },
-    { number: 8, label: "ID", component: PersonalDetails },
   ];
-
   const getInitialValues = () => {
     const savedFormData = localStorage.getItem(FORM_STORAGE_KEY);
 
     if (savedFormData) {
       try {
         const parsedData = JSON.parse(savedFormData);
-        if (parsedData.dateOfBirth) {
-          parsedData.dateOfBirth = new Date(parsedData.dateOfBirth);
-        }
-        return parsedData;
+        // Ensure nested structure exists
+        return {
+          personal: {
+            name: '',
+            fathersName: '',
+            gender: '',
+            category: '',
+            dateOfBirth: '',
+            jeeRollNo: '',
+            jeeRank: '',
+            phone: '',
+            fathersPhone: '',
+            emailId: '',
+            ...parsedData.personal
+          },
+          address: {
+            permanent: {
+              address: '',
+              state: '',
+              district: '',
+              pin: '',
+              ...parsedData.address?.permanent
+            },
+            current: {
+              address: '',
+              state: '',
+              district: '',
+              pin: '',
+              ...parsedData.address?.current
+            }
+          },
+          education: {
+            class10: {
+              school: '',
+              board: '',
+              percentage: '',
+              totalMarks: '',
+              ...parsedData.education?.class10
+            },
+            class12: {
+              school: '',
+              board: '',
+              percentage: '',
+              pcmPercentage: '',
+              ...parsedData.education?.class12
+            }
+          },
+          photoSign: {
+            photo: null,
+            signature: null,
+            ...parsedData.photoSign
+          },
+          documents: {
+            ...parsedData.documents
+          }
+        };
       } catch (error) {
         console.error("Error parsing saved form data:", error);
       }
@@ -119,8 +167,10 @@ const MultiStepForm = () => {
     localStorage.setItem("currentFormStep", currentStep.toString());
   }, [currentStep]);
 
+  // Debounced storage update
   useEffect(() => {
-    const interval = setInterval(() => {
+    let timeoutId;
+    const saveFormData = () => {
       const formik = formikRef.current;
       if (formik) {
         const valuesToSave = { ...formik.values };
@@ -136,9 +186,10 @@ const MultiStepForm = () => {
         });
         localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(valuesToSave));
       }
-    }, 1000); // Save every second
+    };
 
-    return () => clearInterval(interval);
+    timeoutId = setTimeout(saveFormData, 2000); // Save every 2 seconds instead of 1
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const validationSchema = [
@@ -304,131 +355,108 @@ const MultiStepForm = () => {
       ),
     }),
 
-    // Add validation schemas for steps 6, 7, and 8
+    // Add validation schemas for steps 6
     Yup.object({}), // Confirmation form
-    Yup.object({}), // Payment form
-    Yup.object({}), // ID form
   ];
-
-  // First, modify the handleSubmit function to ensure it only runs on step 6
-  const handleSubmit = async () => {
-    if (currentStep !== 6) return;
-
+  const handleSubmit = async (values, { setSubmitting }) => {
     try {
-      // Log the form data being sent
-      console.log("Submitting form data:", formData);
+      if (currentStep !== 6) {
+        setSubmitting(false);
+        return;
+      }
 
+      setSubmitError(null);
       const formDataToSend = new FormData();
-
-      // Add form data with better structure
-      for (const [section, data] of Object.entries(formData)) {
-        if (section === "photoSign") {
-          // Handle photo and signature separately
-          if (data.photo) formDataToSend.append("photo", data.photo);
-          if (data.signature)
-            formDataToSend.append("signature", data.signature);
-        } else if (section === "documents") {
-          // Handle documents
-          Object.entries(data).forEach(([docName, file]) => {
-            if (file instanceof File) {
-              formDataToSend.append(`documents.${docName}`, file);
-            }
-          });
-        } else {
-          // Handle other sections (personal, address, education)
-          formDataToSend.append(section, JSON.stringify(data));
+      
+      // Use the flat structure that matches our form data
+      Object.keys(values).forEach(key => {
+        if (values[key] instanceof File) {
+          formDataToSend.append(key, values[key]);
+        } else if (values[key] !== null && values[key] !== undefined) {
+          formDataToSend.append(key, values[key].toString());
         }
-      }
-
-      // Log the FormData entries
-      for (let [key, value] of formDataToSend.entries()) {
-        console.log(
-          "FormData Entry:",
-          key,
-          value instanceof File ? "File" : value
-        );
-      }
-
-      try {
-        const response = await fetch("http://localhost:3000/api/submit-form", {
-          method: "POST",
-          body: formDataToSend,
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
-          );
+      });      // All form data is already added in flat structure      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/form/submit-form`, {
+        method: 'POST',
+        body: formDataToSend,
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
         }
+      });
 
-        const data = await response.json();
-        console.log("Form submitted successfully:", data);
-        // Handle success (e.g., show a success message, navigate to another page)
-        handleStepChange(
-          7,
-          formikRef.current.validateForm,
-          formikRef.current.setTouched
-        );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Submission failed with status: ${response.status}`);
+      }      const data = await response.json();
 
-        // Clear form data and navigate
+      if (data.success) {
+        // Clear form data from localStorage
         localStorage.removeItem(FORM_STORAGE_KEY);
-        localStorage.removeItem("currentFormStep");
-        navigate("/payment");
-      } catch (networkError) {
-        console.error("Network error:", networkError);
-        setSubmitError(
-          "Unable to connect to server. Please check your internet connection and try again."
-        );
+        localStorage.removeItem('currentFormStep');
+        
+        setSubmitting(false);
+        
+        // Navigate to success page
+        navigate('/success', { 
+          state: { 
+            message: 'Form submitted successfully! Your admission form has been received.',
+            submissionId: data.submissionId 
+          },
+          replace: true 
+        });
+      } else {
+        throw new Error(data.message || 'Form submission failed');
       }
     } catch (error) {
-      console.error("Form processing error:", error);
-      setSubmitError(
-        "Error processing form data. Please ensure all fields are filled correctly."
-      );
+      console.error('Form submission error:', error);
+      setSubmitError(error.message || 'Failed to submit form. Please try again.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleStepChange = async (step, validateForm, setTouched) => {
-    if (step > currentStep) {
-      const errors = await validateForm();
-      if (Object.keys(errors).length === 0) {
-        setCurrentStep(step);
-      } else {
-        setTouched(
-          Object.keys(errors).reduce((acc, key) => {
-            acc[key] = true;
-            return acc;
-          }, {})
+  const handleStepChange = useCallback(
+    async (step, validateForm, setTouched) => {
+      if (step > currentStep) {
+        // Only validate the current step's fields
+        const currentFields =
+          Object.keys(validationSchema[currentStep - 1].fields || {});
+        const errors = await validateForm();
+        const currentErrors = Object.keys(errors).filter((key) =>
+          currentFields.includes(key)
         );
-      }
-    } else {
-      setCurrentStep(step);
-    }
-  };
 
-  const nextStep = async (validateForm, setTouched) => {
-    const errors = await validateForm();
-    if (Object.keys(errors).length === 0) {
+        if (currentErrors.length === 0) {
+          setCurrentStep(step);
+        } else {
+          setTouched(
+            currentErrors.reduce((acc, key) => {
+              acc[key] = true;
+              return acc;
+            }, {})
+          );
+        }
+      } else {
+        setCurrentStep(step);
+      }
+    },
+    [currentStep, validationSchema]
+  );
+
+  const nextStep = useCallback(
+    async (validateForm, setTouched) => {
       if (currentStep < steps.length) {
-        setCurrentStep(currentStep + 1);
+        handleStepChange(currentStep + 1, validateForm, setTouched);
       }
-    } else {
-      setTouched(
-        Object.keys(errors).reduce((acc, key) => {
-          acc[key] = true;
-          return acc;
-        }, {})
-      );
-    }
-  };
+    },
+    [currentStep, steps.length, handleStepChange]
+  );
 
-  const prevStep = () => {
+  const prevStep = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
-  };
+  }, [currentStep]);
 
   const StepComponent = steps[currentStep - 1].component;
 
@@ -438,10 +466,19 @@ const MultiStepForm = () => {
       initialValues={getInitialValues()}
       validationSchema={validationSchema[currentStep - 1]}
       onSubmit={handleSubmit}
-      enableReinitialize={true}
+      validateOnMount={false}
+      validateOnChange={false}
+      validateOnBlur={true}
     >
       {(formikProps) => (
         <Form className="min-h-screen bg-gray-50 pb-10">
+          {submitError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <strong className="font-bold">Error!</strong>
+              <span className="block sm:inline"> {submitError}</span>
+            </div>
+          )}
+
           {/* Desktop and Tablet Step Circles */}
           <div className="hidden md:flex flex-col items-center w-full px-4 sm:px-6 lg:px-0 max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto pt-8 font-satoshi">
             <div className="flex items-center w-full">
@@ -523,14 +560,13 @@ const MultiStepForm = () => {
                 >
                   Previous
                 </button>
-              )}
-              {currentStep === 6 ? (
+              )}              {currentStep === 6 ? (
                 <button
-                  type="button"
-                  onClick={handleSubmit}
+                  type="submit"
                   className="px-4 sm:px-6 py-2.5 bg-orange-400 text-white rounded-lg hover:bg-orange-500 transition-colors duration-200"
+                  disabled={formikProps.isSubmitting}
                 >
-                  Submit
+                  {formikProps.isSubmitting ? 'Submitting...' : 'Submit'}
                 </button>
               ) : (
                 <button
