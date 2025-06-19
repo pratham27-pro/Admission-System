@@ -71,6 +71,12 @@ const userSchema = new mongoose.Schema({
   cardNumber: { type: String },
   paymentStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending' },
 
+  // admin
+  adminStatus: { type: String, enum: ['pending', 'under_review', 'accepted', 'rejected'], default: 'pending' },
+  reviewedBy: { type: String },
+  reviewDate: { type: Date },
+  adminComments: { type: String },
+
   submittedAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
