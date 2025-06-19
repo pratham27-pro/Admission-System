@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useSelector } from "react-redux"; // Add this import
@@ -119,8 +119,10 @@ const MultiStepForm = () => {
     localStorage.setItem("currentFormStep", currentStep.toString());
   }, [currentStep]);
 
+  // Debounced storage update
   useEffect(() => {
-    const interval = setInterval(() => {
+    let timeoutId;
+    const saveFormData = () => {
       const formik = formikRef.current;
       if (formik) {
         const valuesToSave = { ...formik.values };
@@ -136,9 +138,10 @@ const MultiStepForm = () => {
         });
         localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(valuesToSave));
       }
-    }, 1000); // Save every second
+    };
 
-    return () => clearInterval(interval);
+    timeoutId = setTimeout(saveFormData, 2000); // Save every 2 seconds instead of 1
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const validationSchema = [
@@ -311,124 +314,109 @@ const MultiStepForm = () => {
   ];
 
   // First, modify the handleSubmit function to ensure it only runs on step 6
-  const handleSubmit = async () => {
+  const handleSubmit = async (values) => {
     if (currentStep !== 6) return;
 
     try {
-      // Log the form data being sent
-      console.log("Submitting form data:", formData);
-
       const formDataToSend = new FormData();
+      
+      // Process regular fields and files in separate loops for better performance
+      const fileFields = new Set(['photo', 'signature', 'jeeAdmitCard', 'jeeResult', 'registrationSlip', 
+        'allotmentLetter', 'academicFeeReceipt', 'balanceFeeReceipt', 'tenthCertificate', 
+        'twelfthCertificate', 'casteCertificate', 'medicalFitness', 'characterCertificate', 
+        'photographs', 'gapYearUndertaking', 'antiRaggingStudent', 'antiRaggingParent', 
+        'attendanceStudent', 'attendanceParent']);
 
-      // Add form data with better structure
-      for (const [section, data] of Object.entries(formData)) {
-        if (section === "photoSign") {
-          // Handle photo and signature separately
-          if (data.photo) formDataToSend.append("photo", data.photo);
-          if (data.signature)
-            formDataToSend.append("signature", data.signature);
-        } else if (section === "documents") {
-          // Handle documents
-          Object.entries(data).forEach(([docName, file]) => {
-            if (file instanceof File) {
-              formDataToSend.append(`documents.${docName}`, file);
-            }
-          });
-        } else {
-          // Handle other sections (personal, address, education)
-          formDataToSend.append(section, JSON.stringify(data));
+      // Handle regular fields
+      Object.keys(values).forEach(key => {
+        if (!fileFields.has(key)) {
+          if (key === 'dateOfBirth' && values[key]) {
+            formDataToSend.append(key, values[key].toISOString());
+          } else if (values[key] != null) { // Only append non-null values
+            formDataToSend.append(key, values[key]);
+          }
         }
-      }
+      });
 
-      // Log the FormData entries
-      for (let [key, value] of formDataToSend.entries()) {
-        console.log(
-          "FormData Entry:",
-          key,
-          value instanceof File ? "File" : value
-        );
-      }
-
-      try {
-        const response = await fetch("http://localhost:3000/api/submit-form", {
-          method: "POST",
-          body: formDataToSend,
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
-          );
+      // Handle file fields
+      fileFields.forEach(key => {
+        if (values[key] instanceof File) {
+          if (key === 'photo' || key === 'signature') {
+            formDataToSend.append(key, values[key]);
+          } else {
+            formDataToSend.append(`documents.${key}`, values[key]);
+          }
         }
+      });
 
-        const data = await response.json();
-        console.log("Form submitted successfully:", data);
-        // Handle success (e.g., show a success message, navigate to another page)
-        handleStepChange(
-          7,
-          formikRef.current.validateForm,
-          formikRef.current.setTouched
-        );
+      const response = await fetch("http://localhost:8000/api/v1/form/submit", {
+        method: "POST",
+        body: formDataToSend,
+        credentials: "include",
+      });
 
-        // Clear form data and navigate
-        localStorage.removeItem(FORM_STORAGE_KEY);
-        localStorage.removeItem("currentFormStep");
-        navigate("/payment");
-      } catch (networkError) {
-        console.error("Network error:", networkError);
-        setSubmitError(
-          "Unable to connect to server. Please check your internet connection and try again."
-        );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log("Form submitted successfully:", data);
+      
+      // Move to payment step and clear data
+      handleStepChange(7, formikRef.current.validateForm, formikRef.current.setTouched);
+      localStorage.removeItem(FORM_STORAGE_KEY);
+      localStorage.removeItem("currentFormStep");
+      navigate("/payment");
+      
     } catch (error) {
       console.error("Form processing error:", error);
-      setSubmitError(
-        "Error processing form data. Please ensure all fields are filled correctly."
-      );
+      setSubmitError(error.message || "Error processing form data. Please try again.");
     }
   };
 
-  const handleStepChange = async (step, validateForm, setTouched) => {
-    if (step > currentStep) {
-      const errors = await validateForm();
-      if (Object.keys(errors).length === 0) {
-        setCurrentStep(step);
-      } else {
-        setTouched(
-          Object.keys(errors).reduce((acc, key) => {
-            acc[key] = true;
-            return acc;
-          }, {})
+  const handleStepChange = useCallback(
+    async (step, validateForm, setTouched) => {
+      if (step > currentStep) {
+        // Only validate the current step's fields
+        const currentFields =
+          Object.keys(validationSchema[currentStep - 1].fields || {});
+        const errors = await validateForm();
+        const currentErrors = Object.keys(errors).filter((key) =>
+          currentFields.includes(key)
         );
-      }
-    } else {
-      setCurrentStep(step);
-    }
-  };
 
-  const nextStep = async (validateForm, setTouched) => {
-    const errors = await validateForm();
-    if (Object.keys(errors).length === 0) {
+        if (currentErrors.length === 0) {
+          setCurrentStep(step);
+        } else {
+          setTouched(
+            currentErrors.reduce((acc, key) => {
+              acc[key] = true;
+              return acc;
+            }, {})
+          );
+        }
+      } else {
+        setCurrentStep(step);
+      }
+    },
+    [currentStep, validationSchema]
+  );
+
+  const nextStep = useCallback(
+    async (validateForm, setTouched) => {
       if (currentStep < steps.length) {
-        setCurrentStep(currentStep + 1);
+        handleStepChange(currentStep + 1, validateForm, setTouched);
       }
-    } else {
-      setTouched(
-        Object.keys(errors).reduce((acc, key) => {
-          acc[key] = true;
-          return acc;
-        }, {})
-      );
-    }
-  };
+    },
+    [currentStep, steps.length, handleStepChange]
+  );
 
-  const prevStep = () => {
+  const prevStep = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
-  };
+  }, [currentStep]);
 
   const StepComponent = steps[currentStep - 1].component;
 
