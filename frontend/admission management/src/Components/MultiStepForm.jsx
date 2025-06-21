@@ -375,7 +375,8 @@ const MultiStepForm = () => {
         } else if (values[key] !== null && values[key] !== undefined) {
           formDataToSend.append(key, values[key].toString());
         }
-      });      // All form data is already added in flat structure      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      });      // All form data is already added in flat structure      
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
       const response = await fetch(`${API_BASE_URL}/api/form/submit-form`, {
         method: 'POST',
         body: formDataToSend,
